@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { findUserByUsernameOrEmail, createUser, findUserByUsername } = require('../models/userModel');
+const { findUserByUsernameOrEmail, createUser, findUserByUsername, updateUserPassword } = require('../models/userModel');
 
 const registerUser = async (req, res) => {
   const { username, email, password } = req.body;
@@ -64,7 +64,40 @@ const loginUser = async (req, res) => {
   }
 };
 
+const changePassword = async (req, res) => {
+  const { username, oldPassword, newPassword } = req.body;
+  if (!username || !oldPassword || !newPassword) {
+    return res.status(400).json({ status: 400, error: 'Se requieren nombre de usuario, contraseña antigua y contraseña nueva' });
+  }
+
+  try {
+    // Verificar si el usuario existe
+    const user = await findUserByUsername(username);
+    if (!user) {
+      return res.status(400).json({ status: 400, error: 'Nombre de usuario incorrecto' });
+    }
+
+    // Verificar la contraseña antigua
+    const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ status: 400, error: 'Contraseña antigua incorrecta' });
+    }
+
+    // Encriptar la nueva contraseña
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Actualizar la contraseña en la base de datos
+    await updateUserPassword(username, hashedPassword);
+
+    res.status(200).json({ status: 200, message: 'Contraseña actualizada correctamente' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ status: 500, error: 'Error al actualizar la contraseña' });
+  }
+};
+
 module.exports = {
   registerUser,
-  loginUser
+  loginUser,
+  changePassword
 };

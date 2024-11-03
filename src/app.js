@@ -2,7 +2,7 @@ const express = require('express');
 const dotenv = require('dotenv');
 const next = require('next');
 const { createUserTable } = require('../models/userModel');
-const { registerUser, loginUser } = require('../controllers/userController');
+const { registerUser, loginUser, changePassword } = require('../controllers/userController');
 
 // Configurar dotenv para cargar variables de entorno
 dotenv.config();
@@ -25,6 +25,7 @@ app.prepare().then(async () => {
     // Rutas de usuario
     server.post('/api/register', registerUser);
     server.post('/api/login', loginUser);
+    server.post('/api/change-password', changePassword);
 
     // Manejar las rutas de Next.js
     server.all('*', (req, res) => {
