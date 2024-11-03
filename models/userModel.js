@@ -1,6 +1,7 @@
 const { Pool } = require('pg');
 const dotenv = require('dotenv');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
 // Configurar dotenv para cargar variables de entorno
 dotenv.config();
@@ -30,6 +31,7 @@ const createTables = async () => {
       CREATE TABLE IF NOT EXISTS applications (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL UNIQUE,
+        hash VARCHAR(255) NOT NULL UNIQUE,
         active BOOLEAN DEFAULT TRUE
       );
     `);
@@ -101,11 +103,15 @@ const createTables = async () => {
     `, [hashedPassword]);
 
     // Insertar aplicación por defecto
+    const appName = 'app-buskdos';
+    const appHash = crypto.createHash('sha256').update(appName).digest('base64').replace(/[^a-zA-Z0-9]/g, '');
+    const concatenatedHash = `${appName}-${appHash}`.toUpperCase();
+    console.log('Generated concatenatedHash:', concatenatedHash); // Agregar depuración
     await pool.query(`
-      INSERT INTO applications (id, name, active)
-      VALUES (1, 'app-buskados', TRUE)
+      INSERT INTO applications (id, name, hash, active)
+      VALUES (1, $1, $2, TRUE)
       ON CONFLICT (id) DO NOTHING;
-    `);
+    `, [appName, concatenatedHash]);
 
     // Asignar roles a los usuarios por defecto
     const superAdminRoleId = await pool.query(`SELECT id FROM roles WHERE name = 'Super Administrador'`);
@@ -157,15 +163,27 @@ const findUserByUsername = async (username) => {
   return result.rows[0];
 };
 
-const findUserRole = async (userId) => {
+const findUserRole = async (userId, applicationHash) => {
+  console.log('findUserRole - userId:', userId, 'applicationHash:', applicationHash); // Agregar depuración
   const result = await pool.query(`
-    SELECT r.name AS role
+    SELECT r.id AS role_id, r.name AS role, ur.application_id, a.hash AS application_hash
     FROM roles r
     JOIN user_roles ur ON r.id = ur.role_id
-    WHERE ur.user_id = $1 AND ur.active = TRUE
-  `, [userId]);
+    JOIN applications a ON ur.application_id = a.id
+    WHERE ur.user_id = $1 AND a.hash = $2 AND ur.active = TRUE
+  `, [userId, applicationHash]);
   console.log('findUserRole result:', result.rows); // Agregar detalles de depuración
-  return result.rows.length > 0 ? result.rows[0].role : null;
+  return result.rows.length > 0 ? result.rows[0] : null;
+};
+
+const findApplicationByHash = async (hash) => {
+  const result = await pool.query('SELECT * FROM applications WHERE hash = $1', [hash]);
+  return result.rows[0];
+};
+
+const isApplicationActive = async (applicationHash) => {
+  const result = await pool.query('SELECT active FROM applications WHERE hash = $1', [applicationHash]);
+  return result.rows.length > 0 ? result.rows[0].active : false;
 };
 
 const updateUserPassword = async (username, hashedPassword) => {
@@ -176,10 +194,18 @@ const updateUserPassword = async (username, hashedPassword) => {
   return result.rows[0];
 };
 
-const setActiveStatus = async (table, id, active) => {
+const setActiveStatus = async (table, hash, active) => {
   const result = await pool.query(
-    `UPDATE ${table} SET active = $1 WHERE id = $2 RETURNING *`,
-    [active, id]
+    `UPDATE ${table} SET active = $1 WHERE hash = $2 RETURNING *`,
+    [active, hash]
+  );
+  return result.rows[0];
+};
+
+const createApplication = async (name, hash, active) => {
+  const result = await pool.query(
+    'INSERT INTO applications (name, hash, active) VALUES ($1, $2, $3) RETURNING *',
+    [name, hash, active]
   );
   return result.rows[0];
 };
@@ -190,6 +216,9 @@ module.exports = {
   createUser,
   findUserByUsername,
   findUserRole,
+  findApplicationByHash,
+  isApplicationActive,
   updateUserPassword,
-  setActiveStatus
+  setActiveStatus,
+  createApplication
 };

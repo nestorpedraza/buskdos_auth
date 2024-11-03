@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { findUserByUsernameOrEmail, createUser, findUserByUsername, findUserRole, updateUserPassword, setActiveStatus } = require('../models/userModel');
+const { findUserByUsernameOrEmail, createUser, findUserByUsername, findUserRole, isApplicationActive, updateUserPassword, setActiveStatus } = require('../models/userModel');
 
 const registerUser = async (req, res) => {
   const { username, email, password } = req.body;
@@ -34,9 +34,12 @@ const registerUser = async (req, res) => {
 };
 
 const loginUser = async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, applicationHash } = req.body;
   if (!username || !password) {
     return res.status(400).json({ status: 400, error: 'Se requieren nombre de usuario y contraseña' });
+  }
+  if (!applicationHash) {
+    return res.status(400).json({ status: 400, error: 'Se requiere ID de la aplicación' });
   }
 
   try {
@@ -52,16 +55,29 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ status: 400, error: 'Nombre de usuario o contraseña incorrectos' });
     }
 
-    // Obtener el rol activo del usuario
-    const role = await findUserRole(user.id);
-    console.log('User role:', role); // Agregar detalles de depuración
+    // Verificar si la aplicación está activa
+    const isActive = await isApplicationActive(applicationHash);
+    if (!isActive) {
+      return res.status(400).json({ status: 400, error: 'La aplicación no está activa' });
+    }
+
+    // Obtener el rol activo del usuario para la aplicación
+    const roleData = await findUserRole(user.id, applicationHash);
+    console.log('User role:', roleData); // Agregar detalles de depuración
 
     // Crear un token JWT
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRATION,
     });
 
-    res.status(200).json({ status: 200, token, username: user.username, role });
+    res.status(200).json({ 
+      status: 200, 
+      token, 
+      username: user.username, 
+      role_id: roleData.role_id, 
+      role: roleData.role, 
+      application_id: roleData.applicationHash
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ status: 500, error: 'Error en el inicio de sesión' });

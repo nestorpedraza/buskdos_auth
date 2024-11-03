@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const next = require('next');
 const { createTables } = require('../models/userModel');
 const userRoutes = require('../routes/userRoutes');
+const { saveApplication } = require('./models/applicationModel'); // Asegúrate de que la ruta sea correcta
 
 // Configurar dotenv para cargar variables de entorno
 dotenv.config();
@@ -24,6 +25,21 @@ app.prepare().then(async () => {
 
     // Usar las rutas de usuario
     server.use('/api', userRoutes);
+
+    // Definir la ruta /api/applications
+    server.post('/api/applications', async (req, res) => {
+        try {
+            const applicationData = req.body;
+            const result = await saveApplication(applicationData); // Guardar los datos en la base de datos
+            if (result.error) {
+                return res.status(400).send({ message: result.error });
+            }
+            res.status(201).send({ message: result.message });
+        } catch (error) {
+            console.error('Error al guardar la aplicación:', error);
+            res.status(500).send({ message: 'Error al guardar la aplicación' });
+        }
+    });
 
     // Manejar las rutas de Next.js
     server.all('*', (req, res) => {
