@@ -1,8 +1,8 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const next = require('next');
-const { createUserTable } = require('../models/userModel');
-const { registerUser, loginUser, changePassword } = require('../controllers/userController');
+const { createTables } = require('../models/userModel');
+const userRoutes = require('../routes/userRoutes');
 
 // Configurar dotenv para cargar variables de entorno
 dotenv.config();
@@ -17,15 +17,13 @@ app.prepare().then(async () => {
     const server = express();
 
     // Inicializar la base de datos
-    await createUserTable();
+    await createTables();
 
     // Middleware para analizar el cuerpo de las solicitudes
     server.use(express.json());
 
-    // Rutas de usuario
-    server.post('/api/register', registerUser);
-    server.post('/api/login', loginUser);
-    server.post('/api/change-password', changePassword);
+    // Usar las rutas de usuario
+    server.use('/api', userRoutes);
 
     // Manejar las rutas de Next.js
     server.all('*', (req, res) => {
