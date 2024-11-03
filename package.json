@@ -1,0 +1,30 @@
+{
+  "name": "directorio-activo",
+  "version": "1.0.0",
+  "description": "Proyecto de autenticación con Next.js, JWT y PostgreSQL.",
+  "main": "src/app.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "next": "node_modules/.bin/next",
+    "dev:server": "nodemon src/app.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "dotenv": "^10.0.0",
+    "express": "^4.21.1",
+    "jsonwebtoken": "^9.0.2",
+    "next": "^15.0.2",
+    "pg": "^8.7.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.23.0",
+    "eslint-config-next": "^12.3.1",
+    "nodemon": "^3.1.7"
+  },
+  "author": "",
+  "license": "ISC"
+}
